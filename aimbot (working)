@@ -1,0 +1,150 @@
+const tempVector = new THREE.Vector3();
+
+const tempObject = new THREE.Object3D();
+
+tempObject.rotation.order = 'YXZ';
+
+const geometry = new THREE.SphereGeometry( 10 );
+
+const material = new THREE.MeshLambertMaterial( { 
+	color: 'red', 
+	wireframe: true 
+} );
+
+const meshes = [];
+
+let isActive = true;
+
+let scene;
+
+WeakMap.prototype.set = new Proxy( WeakMap.prototype.set, {
+	apply( target, thisArgs, args ) {
+
+		if ( args[ 0 ].type === 'Scene' && args[ 0 ].name === 'Main' ) {
+
+			scene = args[ 0 ];
+
+		}
+
+		return Reflect.apply( ...arguments );
+
+	}
+} );
+
+function animate() {
+
+	window.requestAnimationFrame( animate );
+
+	if ( isActive === false || scene === undefined ) {
+
+		return;
+
+	}
+
+	const players = [];
+
+	let myPlayer;
+
+	for ( let i = 0; i < scene.children.length; i ++ ) {
+
+		const child = scene.children[ i ];
+
+		if ( child.type === 'Object3D' ) {
+
+			try {
+
+				if ( child.children[ 0 ].children[ 0 ].type === 'PerspectiveCamera' ) {
+
+					myPlayer = child;
+
+				} else {
+
+					players.push( child );
+
+				}
+
+			} catch ( err ) {}
+
+		}
+
+	}
+
+	if ( players.length < 2 ) {
+
+		return;
+
+	}
+
+	let targetPlayer;
+	let minDistance = Infinity;
+
+	for ( let i = 0; i < players.length; i ++ ) {
+
+		const player = players[ i ];
+
+		if ( player.position.x === myPlayer.position.x && player.position.z === myPlayer.position.z ) {
+
+			continue;
+
+		}
+
+		if ( player.firstTime !== true ) {
+
+			const mesh = new THREE.Mesh( geometry, material );
+
+			meshes.push( mesh );
+
+			player.add( mesh );
+
+			player.firstTime = true;
+
+		}
+
+		const distance = player.position.distanceTo( myPlayer.position );
+
+		if ( distance < minDistance ) {
+
+			targetPlayer = player;
+
+			minDistance = distance;
+
+		}
+
+	}
+
+	if ( targetPlayer === undefined ) {
+
+		return;
+
+	}
+
+	tempVector.setScalar( 0 );
+
+	targetPlayer.children[ 0 ].children[ 0 ].localToWorld( tempVector );
+
+	tempObject.position.copy( myPlayer.position );
+
+	tempObject.lookAt( tempVector );
+
+	myPlayer.children[ 0 ].rotation.x = - tempObject.rotation.x;
+	myPlayer.rotation.y = tempObject.rotation.y + Math.PI;
+
+}
+
+animate();
+
+window.addEventListener( 'keydown', function ( event ) {
+
+	if ( String.fromCharCode( event.keyCode ) === 'G' ) {
+
+		isActive = ! isActive;
+
+		for ( let i = 0; i < meshes.length; i ++ ) {
+
+			meshes[ i ].visible = isActive;
+
+		}
+
+	}
+
+} )
